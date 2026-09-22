@@ -115,6 +115,7 @@
 
   /* ---------- ตัวเลขนำ + meter ---------- */
   .hero { font-size: 52px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; }
+  .hero .approx { font-size: 30px; font-weight: 500; color: var(--text-secondary); margin-right: 1px; }
   .hero .unit { font-size: 22px; font-weight: 500; color: var(--text-secondary); margin-left: 2px; }
   .hero-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .hero-side { text-align: right; font-size: 13px; color: var(--text-secondary); }
@@ -413,7 +414,7 @@ function render() {
   // บอกให้ชัดว่าเพดานมาจากไหน เพราะความน่าเชื่อถือต่างกันคนละโลก
   const calAgeH = d.calibration ? (Date.now() - new Date(d.calibration.at).getTime()) / 3600000 : null;
   const capNote = d.cap.basis === 'calibrated'
-    ? `ปรับเทียบกับ /usage ของจริงเมื่อ ${since(d.calibration.at)}`
+    ? `ค่าประมาณ ±10% · ปรับเทียบกับ /usage ของจริงเมื่อ ${since(d.calibration.at)}`
       + (calAgeH > 48 ? ' — ควรปรับเทียบใหม่' : '')
     : d.cap.confident
       ? `เพดานประมาณจากหน้าต่างที่เคยชนลิมิตจริง (${d.cap.samples} ครั้ง) — ยังไม่เคยปรับเทียบ`
@@ -431,7 +432,7 @@ function render() {
       <div style="border-top:1px solid var(--grid);margin-top:16px;padding-top:14px;--meter:${wMeter}">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
           <span style="font-size:13px;color:var(--text-secondary)">รายสัปดาห์ (7 วัน)</span>
-          <span style="font-size:20px;font-weight:600">${wPct}<span style="font-size:13px;color:var(--text-secondary)">%</span></span>
+          <span style="font-size:20px;font-weight:600"><span style="font-size:14px;color:var(--text-secondary)">~</span>${wPct}<span style="font-size:13px;color:var(--text-secondary)">%</span></span>
         </div>
         <div class="meter" style="margin:9px 0 7px"><i style="width:${Math.min(100, wPct)}%"></i></div>
         <div class="meter-foot">
@@ -462,7 +463,7 @@ function render() {
       <h2>หน้าต่าง 5 ชั่วโมงปัจจุบัน</h2>
       <p class="hint">เริ่ม ${clock(cur.start, tz)} น. · รีเซ็ต ${clock(cur.reset, tz)} น.</p>
       <div class="hero-row">
-        <div class="hero">${pct}<span class="unit">%</span></div>
+        <div class="hero"><span class="approx">~</span>${pct}<span class="unit">%</span></div>
         <div class="hero-side">
           เหลือเวลา<strong>${left} ชม.</strong>
         </div>

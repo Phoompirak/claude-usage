@@ -109,11 +109,11 @@ export function buildPlatforms({ claude, openai, manual, tz }) {
       return {
         ...card,
         status: 'ok',
-        headline: claude.current ? Math.round(claude.current.pct * 100) + '%' : '—',
+        headline: claude.current ? '~' + Math.round(claude.current.pct * 100) + '%' : '—',
         headlineLabel: 'ของหน้าต่าง 5 ชม.',
         stats: claude.weekly
           ? [
-              { k: 'รายสัปดาห์', v: Math.round(claude.weekly.pct * 100) + '%' },
+              { k: 'รายสัปดาห์', v: '~' + Math.round(claude.weekly.pct * 100) + '%' },
               { k: '7 วันล่าสุด', v: '$' + claude.last7.cost.toFixed(2) },
             ]
           : [
