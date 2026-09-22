@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { scan } from './scan.js';
 import { aggregate } from './aggregate.js';
-import { encryptJSON } from './encrypt.js';
+import { encryptJSON, WEAK_PASSPHRASE_LENGTH } from './encrypt.js';
 import { collectOpenAI } from './providers/openai.js';
 import { buildPlatforms, loadManual } from './platforms.js';
 
@@ -42,6 +42,13 @@ async function main() {
   if (!passphrase) {
     console.error('ไม่พบ CU_PASSPHRASE — คัดลอก .env.local.example เป็น .env.local แล้วตั้งค่าก่อน');
     process.exit(1);
+  }
+
+  if (passphrase.length < WEAK_PASSPHRASE_LENGTH) {
+    console.warn(
+      `เตือน: รหัสยาว ${passphrase.length} ตัว สั้นกว่า ${WEAK_PASSPHRASE_LENGTH} ` +
+      'ไฟล์อยู่บน public URL ใครก็โหลดไปลองเดาแบบออฟไลน์ได้ไม่จำกัดครั้ง',
+    );
   }
 
   const tz = process.env.CU_TZ || 'Asia/Bangkok';

@@ -107,6 +107,79 @@ powershell -ExecutionPolicy Bypass -File scripts\install-task.ps1
 
 ---
 
+## ใช้งานประจำวัน
+
+ปกติ**ไม่ต้องทำอะไรเลย** — Scheduled Task sync ให้ทุก 10 นาที แค่เปิด URL ดู
+
+### เช็คว่ายังทำงานปกติไหม
+
+```powershell
+Get-Content .cache\sync.log -Tail 6
+```
+
+บรรทัดที่ควรเห็น:
+
+```
+[Tue 09/22/2026 13:40:00]
+สแกน 4 ไฟล์ (+21 บรรทัดใหม่) -> 1725 ข้อความ | หน้าต่างปัจจุบัน 24.1% | รวม $220.51
+แพลตฟอร์ม: Claude=ok · ChatGPT=no-key · ...
+push ขึ้น https://github.com/... (master) เรียบร้อย
+```
+
+ถ้าเห็นคำว่า `sync ล้มเหลว:` ให้อ่านข้อความต่อท้าย — บอกสาเหตุตรง ๆ
+
+### สั่ง sync เดี๋ยวนี้
+
+```powershell
+node src/sync.js --force
+```
+
+`--force` จำเป็นเมื่อ**ไม่มีข้อความใหม่**แต่ยังอยากให้ push (เช่น เปลี่ยนรหัส แก้หน้าเว็บ แก้ manual.json)
+
+### บันทึกการใช้แพลตฟอร์มที่ไม่มี API
+
+สร้าง `manual.json` (คัดลอกจาก `manual.example.json`) แล้วใส่จำนวนครั้งต่อวัน:
+
+```json
+{
+  "gemini":    { "2026-09-22": 12, "2026-09-23": 8 },
+  "consensus": { "2026-09-22": 3 },
+  "scispace":  { "2026-09-22": 5 }
+}
+```
+
+แล้วรัน `node src/sync.js --force` การ์ดจะอัปเดตตาม
+ไฟล์นี้อยู่ใน `.gitignore` — ไม่ขึ้น GitHub แบบอ่านได้ ตัวเลขไปโผล่ในไฟล์เข้ารหัสเท่านั้น
+
+### เปิดใช้ตัวเลข OpenAI
+
+1. สร้าง Admin key ที่ https://platform.openai.com/settings/organization/admin-keys
+2. ใส่ใน `.env.local`: `OPENAI_ADMIN_KEY=sk-admin-...`
+3. `node src/sync.js --force`
+
+### จัดการ Scheduled Task
+
+```powershell
+Get-ScheduledTaskInfo -TaskName ClaudeUsageSync          # ดูรอบล่าสุด
+Start-ScheduledTask   -TaskName ClaudeUsageSync          # สั่งรันเดี๋ยวนี้
+Disable-ScheduledTask -TaskName ClaudeUsageSync          # พักไว้ก่อน
+Enable-ScheduledTask  -TaskName ClaudeUsageSync          # เปิดกลับ
+powershell -File scripts\install-task.ps1 -IntervalMinutes 30   # เปลี่ยนรอบ
+powershell -File scripts\install-task.ps1 -Uninstall            # ถอนออก
+```
+
+### ปัญหาที่เจอบ่อย
+
+| อาการ | สาเหตุ / วิธีแก้ |
+|---|---|
+| `npm : ... running scripts is disabled` | PowerShell บล็อก `.ps1` — ใช้ `node src/sync.js` หรือ `npm.cmd` แทน |
+| เว็บขึ้น "รหัสผ่านไม่ถูกต้อง" ทั้งที่รหัสถูก | เบราว์เซอร์จำรหัสเก่า — กดปุ่ม **ล็อก** มุมขวาบน แล้วใส่ใหม่ |
+| ตัวเลขบนเว็บไม่ขยับ | ดู `.cache\sync.log` · ถ้าไม่มีบรรทัดใหม่เลย แปลว่า Task ไม่ได้รัน |
+| แก้ `.env.local` แล้วไม่มีผล | ยังไม่ได้กด Ctrl+S |
+| sync บอก "ไม่มีข้อความใหม่" | ปกติ — ใช้ `--force` ถ้าต้องการบังคับ push |
+
+---
+
 ## โครงสร้าง
 
 ```
@@ -136,7 +209,8 @@ calibrate จากเหตุการณ์ชนลิมิตจริง�
 ## ความปลอดภัย
 
 - ไฟล์ที่ push ขึ้น public URL มีแต่ ciphertext (AES-256-GCM, คีย์จาก PBKDF2 250,000 รอบ)
+- **ความแข็งแรงขึ้นกับความยาวรหัสล้วน ๆ** — ไฟล์อยู่บน public URL ใครก็โหลดไปลองเดาแบบออฟไลน์ได้ไม่จำกัดครั้ง ถ้ารหัสสั้นกว่า 12 ตัว sync จะเตือนทุกครั้งแต่ไม่ห้าม
 - รหัสผ่านไม่เคยถูกส่งขึ้นเครือข่าย — ถอดรหัสในเบราว์เซอร์ทั้งหมด
 - ถ้าติ๊ก "จำรหัสไว้" รหัสจะอยู่ใน `localStorage` ของเบราว์เซอร์นั้นเท่านั้น กดปุ่ม **ล็อก** เพื่อลบ
-- **เปลี่ยนรหัสผ่าน** = แก้ `.env.local` แล้ว `npm run sync` ใหม่ (snapshot เก่าใน git history ยังเปิดด้วยรหัสเดิมได้ ถ้ากังวลให้สร้าง repo ใหม่)
+- **เปลี่ยนรหัสผ่าน** = แก้ `.env.local` แล้ว `node src/sync.js --force` (snapshot เก่าใน git history ยังเปิดด้วยรหัสเดิมได้ ถ้ากังวลให้สร้าง repo ใหม่)
 - โปรเจกต์นี้ไม่อ่านและไม่เก็บ credential ของบัญชี Claude

@@ -11,9 +11,12 @@ const KEY_LEN = 32;
 const IV_LEN = 12;
 const SALT_LEN = 16;
 
+/** ต่ำกว่านี้ถือว่าเสี่ยงพอที่จะเตือน — แต่ไม่ห้าม เจ้าของข้อมูลตัดสินใจเอง */
+export const WEAK_PASSPHRASE_LENGTH = 12;
+
 export function encryptJSON(obj, passphrase) {
-  if (!passphrase || passphrase.length < 8) {
-    throw new Error('CU_PASSPHRASE ต้องยาวอย่างน้อย 8 ตัวอักษร');
+  if (!passphrase) {
+    throw new Error('ยังไม่ได้ตั้ง CU_PASSPHRASE');
   }
   const salt = crypto.randomBytes(SALT_LEN);
   const iv = crypto.randomBytes(IV_LEN);
