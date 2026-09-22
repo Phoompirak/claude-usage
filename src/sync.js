@@ -11,6 +11,8 @@ import { encryptJSON } from './encrypt.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NO_PUSH = process.argv.includes('--no-push');
+// --force: push แม้ไม่มีข้อความใหม่ — จำเป็นตอนเปลี่ยน passphrase หรือแก้หน้าเว็บ
+const FORCE = process.argv.includes('--force');
 
 /** โหลด .env.local แบบง่าย ๆ (KEY=value ต่อบรรทัด) โดยไม่พึ่ง dependency */
 function loadEnv() {
@@ -64,8 +66,8 @@ async function main() {
   const stampFile = path.join(ROOT, '.cache', 'published.json');
   let lastCount = -1;
   try { lastCount = JSON.parse(fs.readFileSync(stampFile, 'utf8')).events; } catch { /* first run */ }
-  const unchanged = lastCount === events.length && previous !== '';
-  if (unchanged) { console.log('ไม่มีข้อความใหม่ตั้งแต่ push ล่าสุด — ไม่ push'); return; }
+  const unchanged = lastCount === events.length && previous !== '' && !FORCE;
+  if (unchanged) { console.log('ไม่มีข้อความใหม่ตั้งแต่ push ล่าสุด — ไม่ push (ใช้ --force ถ้าต้องการบังคับ)'); return; }
 
   let remote = '';
   try { remote = git(['remote', 'get-url', 'origin']); } catch { /* ยังไม่ได้ตั้ง remote */ }
@@ -74,7 +76,7 @@ async function main() {
     return;
   }
 
-  git(['add', 'docs/data.enc.json']);
+  git(['add', 'docs']); // ครอบ index.html ด้วย เผื่อแก้หน้าเว็บแล้ว sync
   const staged = git(['diff', '--cached', '--name-only']);
   if (!staged) { console.log('ไม่มีอะไรให้ commit'); return; }
 

@@ -7,7 +7,8 @@
   "scripts": {
     "sync": "node src/sync.js",
     "sync:nopush": "node src/sync.js --no-push",
-    "preview": "node .cache/mkpreview.mjs"
+    "preview": "node .cache/mkpreview.mjs",
+    "sync:force": "node src/sync.js --force"
   },
   "engines": {
     "node": ">=20"
