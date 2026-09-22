@@ -94,6 +94,12 @@
   header .who { flex: 1 1 200px; min-width: 0; }
   header .who .label { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
   header .who .sub { font-size: 12px; color: var(--muted); }
+  header .who .sub.stale { color: var(--warning); font-weight: 600; }
+  .card.stale {
+    border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+    background: color-mix(in srgb, var(--warning) 8%, var(--surface-1));
+    padding: 14px 16px;
+  }
   header .tools { display: flex; gap: 8px; }
   header .tools button { padding: 6px 10px; font-size: 13px; }
 
@@ -408,6 +414,20 @@ function render() {
     ? `เพดานประมาณจากหน้าต่างที่เคยชนลิมิตจริง (${d.cap.samples} ครั้ง)`
     : 'ยังไม่เคยชนลิมิต — เพดานนี้เป็นเพียงขอบล่างจากค่าสูงสุดที่เคยใช้';
 
+  // ข้อมูลจะสดได้ก็ต่อเมื่อเครื่องที่ sync ยังเปิดอยู่ ถ้าเงียบไปนานต้องบอกให้รู้
+  // ไม่งั้นตัวเลขที่แช่แข็งจะดูเหมือนตัวเลขสด
+  const ageMin = Math.floor((Date.now() - new Date(d.generatedAt).getTime()) / 60000);
+  const stale = ageMin >= 25;
+  const staleBanner = stale ? `
+    <div class="card stale">
+      <div class="status-line" style="margin:0">
+        <span class="dot" style="background:var(--warning)"></span>
+        <span><b>ข้อมูลหยุดอัปเดตมา ${ageMin >= 1440 ? Math.floor(ageMin / 1440) + ' วัน'
+          : ageMin >= 60 ? Math.floor(ageMin / 60) + ' ชม.' : ageMin + ' นาที'}</b>
+        — เครื่องที่ sync น่าจะปิดอยู่ ตัวเลขด้านล่างคือค่า ณ ตอนนั้น ไม่ใช่ตอนนี้</span>
+      </div>
+    </div>` : '';
+
   const hitCount = d.windows.filter((w) => w.hitLimit).length;
   const totalTokens = d.totals.input + d.totals.output + d.totals.cacheWrite + d.totals.cacheRead;
 
@@ -439,7 +459,7 @@ function render() {
     <header>
       <div class="who">
         <div class="label">${esc(d.label || 'Claude usage')}</div>
-        <div class="sub">อัปเดต ${since(d.generatedAt)} · ${d.plan ? d.plan.toUpperCase() : ''}</div>
+        <div class="sub${stale ? ' stale' : ''}">อัปเดต ${since(d.generatedAt)} · ${d.plan ? d.plan.toUpperCase() : ''}</div>
       </div>
       <div class="tools">
         <button id="refresh" title="โหลดข้อมูลล่าสุดจากเซิร์ฟเวอร์">↻</button>
@@ -447,6 +467,8 @@ function render() {
         <button id="lock" title="ล็อกและลืมรหัส">ล็อก</button>
       </div>
     </header>
+
+    ${staleBanner}
 
     ${d.platforms ? platformCards(d.platforms) : ''}
 
