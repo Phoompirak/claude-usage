@@ -120,6 +120,40 @@
   .status-line { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-top: 12px; color: var(--text-secondary); }
   .status-line .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--meter, var(--series-1)); }
 
+  /* ---------- กริดการ์ดแพลตฟอร์ม ---------- */
+  .pgrid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 14px; }
+  @media (min-width: 560px) { .pgrid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 840px) { .pgrid { grid-template-columns: repeat(3, 1fr); } }
+  .pcard {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0;
+  }
+  .pcard > .accent { height: 3px; background: var(--pc, var(--series-1)); }
+  .pcard > .body { padding: 16px; flex: 1; }
+  .pcard .row1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .pcard .badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+  .badge {
+    font-size: 10px; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 5px;
+    background: var(--grid); color: var(--text-secondary); white-space: nowrap;
+  }
+  .badge.tier { background: color-mix(in srgb, var(--pc) 16%, var(--surface-1)); color: var(--text-primary); }
+  .pcard .pname { font-size: 16px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+  .pcard .ptag { font-size: 12px; color: var(--text-secondary); line-height: 1.45; min-height: 34px; }
+  .pcard .num { display: flex; align-items: baseline; gap: 7px; margin-top: 14px; }
+  .pcard .num b { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+  .pcard .num span { font-size: 11px; color: var(--muted); }
+  .pcard .pstats { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+  .pcard .pstats b { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .pcard .why { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  .pcard > .foot {
+    border-top: 1px solid var(--grid); padding: 11px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px;
+  }
+  .pcard > .foot a { color: var(--series-1); text-decoration: none; }
+  .pcard > .foot a:hover { text-decoration: underline; }
+  .src { font-size: 10px; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 4px; background: var(--grid); color: var(--muted); }
+  .src.auto { color: var(--good); }
+
   /* ---------- stat tiles ---------- */
   .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
   @media (min-width: 620px) { .tiles { grid-template-columns: repeat(4, 1fr); } }
@@ -299,6 +333,52 @@ function hbars(rows, keyName) {
     </div>`).join('') + '</div>';
 }
 
+/* ---------------- การ์ดแพลตฟอร์ม ---------------- */
+const SRC_LABEL = {
+  auto: 'ดึงอัตโนมัติ',
+  manual: 'กรอกเอง',
+  link: 'ลิงก์อย่างเดียว',
+};
+const STATUS_HINT = {
+  'no-key': 'ยังไม่ได้ใส่ OPENAI_ADMIN_KEY ใน .env.local',
+  'wrong-key-type': 'ต้องใช้ Admin key (sk-admin-…) ไม่ใช่ key ธรรมดา',
+  'bad-key': 'key ใช้ไม่ได้',
+  error: 'เรียก API ไม่สำเร็จ',
+  'no-data': 'ยังไม่มีตัวเลขที่บันทึกไว้',
+};
+
+function platformCards(list) {
+  return '<div class="pgrid">' + list.map((p) => {
+    const hint = p.message || STATUS_HINT[p.status] || '';
+    const showNum = p.headline && p.headline !== '—';
+    return `
+    <div class="pcard" style="--pc:${p.accent}">
+      <div class="accent"></div>
+      <div class="body">
+        <div class="row1">
+          <div class="pname">${esc(p.name)}</div>
+          <div class="badges">
+            <span class="badge">${esc(p.kind)}</span>
+            <span class="badge tier">${esc(p.tier)}</span>
+          </div>
+        </div>
+        <div class="ptag">${esc(p.tagline)}</div>
+        <div class="num">
+          <b style="${showNum ? '' : 'color:var(--muted)'}">${esc(p.headline)}</b>
+          <span>${esc(p.headlineLabel)}</span>
+        </div>
+        ${p.stats.length ? `<div class="pstats">${p.stats.map((s) =>
+          `<span>${esc(s.k)} <b>${esc(s.v)}</b></span>`).join('')}</div>` : ''}
+        <div class="why">${esc(hint ? hint + ' · ' : '')}${esc(p.sourceNote)}</div>
+      </div>
+      <div class="foot">
+        <a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">เปิดแพลตฟอร์ม ↗</a>
+        <span class="src ${p.source === 'auto' && p.status === 'ok' ? 'auto' : ''}">${esc(SRC_LABEL[p.source] || p.source)}</span>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
 /* ---------------- วาดทั้งหน้า ---------------- */
 function render() {
   const d = DATA;
@@ -357,6 +437,9 @@ function render() {
       </div>
     </header>
 
+    ${d.platforms ? platformCards(d.platforms) : ''}
+
+    <h2 style="font-size:13px;color:var(--text-secondary);margin:22px 0 10px">รายละเอียด Claude Code</h2>
     ${heroCard}
 
     <div class="tiles">

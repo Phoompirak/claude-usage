@@ -7,7 +7,24 @@ Dashboard ส่วนตัวสำหรับดูการใช้งา�
 
 ---
 
-## สิ่งที่ดูได้
+## แพลตฟอร์มที่รองรับ
+
+| แพลตฟอร์ม | แหล่งข้อมูล | ดึงอัตโนมัติ |
+|---|---|---|
+| Claude Code | log ในเครื่อง `~/.claude/projects` | ✅ |
+| ChatGPT / OpenAI | Usage API + Cost API (ต้องมี Admin key) | ✅ เฉพาะฝั่ง **API platform** |
+| Gemini | — | ❌ ไม่มี endpoint บอก usage |
+| Consensus | — | ❌ ไม่มี public API |
+| SciSpace | — | ❌ ไม่มี public API |
+
+ตัวที่ดึงไม่ได้ กรอกตัวเลขเองได้ใน `manual.json` (ดูตัวอย่างที่ `manual.example.json`)
+
+> **ChatGPT Plus/Team ไม่มี API บอกโควต้าข้อความ** — Usage API ของ OpenAI รายงานเฉพาะการเรียก API
+> ผ่าน platform.openai.com ซึ่งเป็นคนละกระเป๋ากับ subscription
+
+---
+
+## สิ่งที่ดูได้ (Claude Code)
 
 | ส่วน | รายละเอียด |
 |---|---|
@@ -96,6 +113,8 @@ powershell -ExecutionPolicy Bypass -File scripts\install-task.ps1
 src/pricing.js    ตารางราคาต่อ 1M token + สูตรคิดค่า cache
 src/scan.js       อ่าน ~/.claude/projects/**/*.jsonl แบบ incremental (จำ byte offset)
 src/aggregate.js  แบ่งหน้าต่าง 5 ชม. · ประมาณเพดาน · สรุปรายวัน/โมเดล/โปรเจกต์
+src/platforms.js  ประกอบการ์ดของทุกแพลตฟอร์มให้รูปแบบเดียวกัน
+src/providers/openai.js  ดึง OpenAI Usage API + Cost API
 src/encrypt.js    AES-256-GCM + PBKDF2 (250k รอบ, SHA-256)
 src/sync.js       ร้อยทุกอย่างเข้าด้วยกัน แล้ว commit + push
 docs/index.html   dashboard หน้าเดียว ถอดรหัสด้วย WebCrypto ในเบราว์เซอร์

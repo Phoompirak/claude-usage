@@ -8,6 +8,8 @@ import { execFileSync } from 'node:child_process';
 import { scan } from './scan.js';
 import { aggregate } from './aggregate.js';
 import { encryptJSON } from './encrypt.js';
+import { collectOpenAI } from './providers/openai.js';
+import { buildPlatforms, loadManual } from './platforms.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NO_PUSH = process.argv.includes('--no-push');
@@ -49,6 +51,12 @@ async function main() {
   const { events, quota, files, newLines } = await scan({ cacheDir: path.join(ROOT, '.cache') });
   const data = aggregate({ events, quota, tz, label, plan });
 
+  // แพลตฟอร์มอื่น — ดึงได้เท่าที่แต่ละเจ้าเปิดให้ดึง ล้มเหลวก็ไม่ทำให้ sync ทั้งก้อนพัง
+  const openai = await collectOpenAI({ key: process.env.OPENAI_ADMIN_KEY, tz })
+    .catch((e) => ({ status: 'error', message: e.message }));
+  data.platforms = buildPlatforms({ claude: data, openai, manual: loadManual(ROOT), tz });
+  data.openai = openai.status === 'ok' ? openai : null;
+
   const outFile = path.join(ROOT, 'docs', 'data.enc.json');
   const previous = fs.existsSync(outFile) ? fs.readFileSync(outFile, 'utf8') : '';
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
@@ -59,6 +67,7 @@ async function main() {
     `สแกน ${files} ไฟล์ (+${newLines} บรรทัดใหม่) -> ${events.length} ข้อความ | ` +
     `หน้าต่างปัจจุบัน ${pct} | รวม $${data.totals.cost.toFixed(2)}`,
   );
+  console.log('แพลตฟอร์ม: ' + data.platforms.map((p) => `${p.name}=${p.status}`).join(' · '));
 
   if (NO_PUSH) { console.log('ข้าม git push (--no-push)'); return; }
 
