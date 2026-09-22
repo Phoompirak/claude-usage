@@ -111,10 +111,18 @@ export function buildPlatforms({ claude, openai, manual, tz }) {
         status: 'ok',
         headline: claude.current ? Math.round(claude.current.pct * 100) + '%' : '—',
         headlineLabel: 'ของหน้าต่าง 5 ชม.',
-        stats: [
-          { k: '7 วันล่าสุด', v: '$' + claude.last7.cost.toFixed(2) },
-          { k: 'ข้อความ 7 วัน', v: String(claude.last7.events) },
-        ],
+        stats: claude.weekly
+          ? [
+              { k: 'รายสัปดาห์', v: Math.round(claude.weekly.pct * 100) + '%' },
+              { k: '7 วันล่าสุด', v: '$' + claude.last7.cost.toFixed(2) },
+            ]
+          : [
+              { k: '7 วันล่าสุด', v: '$' + claude.last7.cost.toFixed(2) },
+              { k: 'ข้อความ 7 วัน', v: String(claude.last7.events) },
+            ],
+        sourceNote: claude.cap.basis === 'calibrated'
+          ? 'อ่าน log ในเครื่อง + ปรับเทียบกับ /usage ของจริง'
+          : p.sourceNote + ' — ยังไม่ได้ปรับเทียบ ตัวเลข % อาจคลาดมาก',
       };
     }
 

@@ -410,9 +410,35 @@ function render() {
     const ms = Math.max(0, cur.reset - Date.now());
     left = `${Math.floor(ms / 3600000)}:${pad(Math.floor(ms / 60000) % 60)}`;
   }
-  const capNote = d.cap.confident
-    ? `เพดานประมาณจากหน้าต่างที่เคยชนลิมิตจริง (${d.cap.samples} ครั้ง)`
-    : 'ยังไม่เคยชนลิมิต — เพดานนี้เป็นเพียงขอบล่างจากค่าสูงสุดที่เคยใช้';
+  // บอกให้ชัดว่าเพดานมาจากไหน เพราะความน่าเชื่อถือต่างกันคนละโลก
+  const calAgeH = d.calibration ? (Date.now() - new Date(d.calibration.at).getTime()) / 3600000 : null;
+  const capNote = d.cap.basis === 'calibrated'
+    ? `ปรับเทียบกับ /usage ของจริงเมื่อ ${since(d.calibration.at)}`
+      + (calAgeH > 48 ? ' — ควรปรับเทียบใหม่' : '')
+    : d.cap.confident
+      ? `เพดานประมาณจากหน้าต่างที่เคยชนลิมิตจริง (${d.cap.samples} ครั้ง) — ยังไม่เคยปรับเทียบ`
+      : 'ยังไม่เคยชนลิมิตและยังไม่เคยปรับเทียบ — ตัวเลขนี้เชื่อถือไม่ได้';
+  const capDotColor = d.cap.basis === 'calibrated'
+    ? (calAgeH > 48 ? 'var(--warning)' : 'var(--good)')
+    : 'var(--warning)';
+
+  // แถบรายสัปดาห์ มีได้ก็ต่อเมื่อปรับเทียบ weekly ไว้
+  const w = d.weekly;
+  const wPct = w ? Math.round(w.pct * 100) : 0;
+  const wMeter = wPct >= 85 ? 'var(--critical)' : wPct >= 60 ? 'var(--warning)' : 'var(--series-1)';
+  const wLeftD = w ? Math.max(0, Math.ceil((w.reset - Date.now()) / 86400000)) : 0;
+  const weeklyBlock = w ? `
+      <div style="border-top:1px solid var(--grid);margin-top:16px;padding-top:14px;--meter:${wMeter}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+          <span style="font-size:13px;color:var(--text-secondary)">รายสัปดาห์ (7 วัน)</span>
+          <span style="font-size:20px;font-weight:600">${wPct}<span style="font-size:13px;color:var(--text-secondary)">%</span></span>
+        </div>
+        <div class="meter" style="margin:9px 0 7px"><i style="width:${Math.min(100, wPct)}%"></i></div>
+        <div class="meter-foot">
+          <span>ใช้ไป ${money(w.cost)} · ${w.events} ข้อความ</span>
+          <span>รีเซ็ตอีก ${wLeftD} วัน · เพดาน ~${money(w.capCost)}</span>
+        </div>
+      </div>` : '';
 
   // ข้อมูลจะสดได้ก็ต่อเมื่อเครื่องที่ sync ยังเปิดอยู่ ถ้าเงียบไปนานต้องบอกให้รู้
   // ไม่งั้นตัวเลขที่แช่แข็งจะดูเหมือนตัวเลขสด
@@ -446,7 +472,8 @@ function render() {
         <span>ใช้ไป ${money(cur.cost)} · ${cur.events} ข้อความ</span>
         <span>เพดาน ~${money(d.cap.cost)}</span>
       </div>
-      <div class="status-line"><span class="dot"></span>${capNote}</div>
+      ${weeklyBlock}
+      <div class="status-line"><span class="dot" style="background:${capDotColor}"></span>${capNote}</div>
     </div>` : `
     <div class="card">
       <h2>หน้าต่าง 5 ชั่วโมงปัจจุบัน</h2>

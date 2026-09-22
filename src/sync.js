@@ -10,6 +10,7 @@ import { aggregate } from './aggregate.js';
 import { encryptJSON, WEAK_PASSPHRASE_LENGTH } from './encrypt.js';
 import { collectOpenAI } from './providers/openai.js';
 import { buildPlatforms, loadManual } from './platforms.js';
+import { loadCalibration } from './calibrate.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NO_PUSH = process.argv.includes('--no-push');
@@ -56,7 +57,7 @@ async function main() {
   const plan = process.env.CU_PLAN || 'pro';
 
   const { events, quota, files, newLines } = await scan({ cacheDir: path.join(ROOT, '.cache') });
-  const data = aggregate({ events, quota, tz, label, plan });
+  const data = aggregate({ events, quota, tz, label, plan, calibration: loadCalibration(ROOT) });
 
   // แพลตฟอร์มอื่น — ดึงได้เท่าที่แต่ละเจ้าเปิดให้ดึง ล้มเหลวก็ไม่ทำให้ sync ทั้งก้อนพัง
   const openai = await collectOpenAI({ key: process.env.OPENAI_ADMIN_KEY, tz })

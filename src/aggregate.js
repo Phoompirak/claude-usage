@@ -68,7 +68,7 @@ export function estimateCap(windows) {
   };
 }
 
-export function aggregate({ events, quota, tz, label, plan }) {
+export function aggregate({ events, quota, tz, label, plan, calibration }) {
   const windows = buildWindows(events);
 
   // ผูกเหตุการณ์ชนลิมิตเข้ากับหน้าต่างที่มันเกิด
@@ -82,7 +82,17 @@ export function aggregate({ events, quota, tz, label, plan }) {
     }
   }
 
-  const cap = estimateCap(windows);
+  // ค่าที่ปรับเทียบกับแผง /usage ของจริงชนะการเดาเสมอ — มันคือตัวเลขจากเซิร์ฟเวอร์
+  const cap = calibration?.session?.capCost
+    ? {
+        cost: calibration.session.capCost,
+        basis: 'calibrated',
+        confident: true,
+        calibratedAt: calibration.at,
+        samples: windows.filter((w) => w.hitLimit).length,
+        windows: windows.length,
+      }
+    : estimateCap(windows);
 
   const dailyMap = new Map();
   const modelMap = new Map();
@@ -104,7 +114,40 @@ export function aggregate({ events, quota, tz, label, plan }) {
 
   const now = Date.now();
   const last = windows[windows.length - 1];
-  const active = last && now < last.reset ? last : null;
+  let active = last && now < last.reset ? last : null;
+
+  // ถ้าปรับเทียบไว้และหน้าต่างนั้นยังไม่หมดอายุ ให้ยึดขอบเขตจากของจริง
+  // จำเป็นเพราะหน้าต่างอาจถูกเปิดโดยการใช้งานนอกเครื่องนี้ ซึ่ง log ในเครื่องมองไม่เห็น
+  const cs = calibration?.session;
+  if (cs && now < cs.reset) {
+    const w = { start: cs.start, reset: cs.reset, hitLimit: false, ...zero() };
+    for (const e of events) {
+      const t = new Date(e.ts).getTime();
+      if (t >= cs.start && t < cs.reset) add(w, e);
+    }
+    w.anchored = true;
+    active = w;
+  }
+
+  // หน้าต่างรายสัปดาห์ — มีได้ก็ต่อเมื่อปรับเทียบไว้ เพราะ log ไม่บอกขอบเขตของมันเลย
+  let weekly = null;
+  if (calibration?.weekly?.capCost) {
+    const cw = calibration.weekly;
+    let reset = cw.reset;
+    while (reset <= now) reset += 7 * 24 * HOUR; // เลื่อนไปรอบปัจจุบันถ้ารอบที่ปรับเทียบไว้จบแล้ว
+    const start = reset - 7 * 24 * HOUR;
+    const acc = zero();
+    for (const e of events) {
+      const t = new Date(e.ts).getTime();
+      if (t >= start && t < reset) add(acc, e);
+    }
+    weekly = {
+      start, reset, cost: acc.cost, events: acc.events,
+      capCost: cw.capCost,
+      pct: cw.capCost > 0 ? Math.min(1, acc.cost / cw.capCost) : 0,
+      rolledOver: reset !== cw.reset,
+    };
+  }
 
   const totals = events.reduce(add, zero());
 
@@ -148,8 +191,11 @@ export function aggregate({ events, quota, tz, label, plan }) {
           cacheRead: active.cacheRead,
           pct: cap.cost > 0 ? Math.min(1, active.cost / cap.cost) : 0,
           hitLimit: active.hitLimit,
+          anchored: Boolean(active.anchored),
         }
       : null,
+    weekly,
+    calibration: calibration ? { at: calibration.at, sessionPct: calibration.session?.pct ?? null, weeklyPct: calibration.weekly?.pct ?? null } : null,
     last7,
     daily,
     windows: windows.slice(-40),
