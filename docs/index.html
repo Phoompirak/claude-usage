@@ -195,6 +195,16 @@
   .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--critical); }
   .scroll { overflow-x: auto; }
   .hidden { display: none !important; }
+  .flash {
+    position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 12px);
+    background: var(--text-primary); color: var(--surface-1);
+    padding: 9px 16px; border-radius: 999px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20;
+    max-width: calc(100vw - 32px); text-align: center;
+  }
+  .flash.show { opacity: 1; transform: translate(-50%, 0); }
+  .flash.err { background: var(--critical); color: #fff; }
+  button:disabled { opacity: .55; cursor: default; }
   footer { font-size: 12px; color: var(--muted); margin-top: 22px; line-height: 1.7; }
 </style>
 </head>
@@ -432,6 +442,7 @@ function render() {
         <div class="sub">อัปเดต ${since(d.generatedAt)} · ${d.plan ? d.plan.toUpperCase() : ''}</div>
       </div>
       <div class="tools">
+        <button id="refresh" title="โหลดข้อมูลล่าสุดจากเซิร์ฟเวอร์">↻</button>
         <button id="theme" title="สลับธีม">◐</button>
         <button id="lock" title="ล็อกและลืมรหัส">ล็อก</button>
       </div>
@@ -489,6 +500,7 @@ function render() {
       ข้อมูลตั้งแต่ ${d.source.firstTs ? new Date(d.source.firstTs).toLocaleDateString('th-TH', { timeZone: tz }) : '—'}
     </footer>`;
 
+  document.getElementById('refresh').onclick = refresh;
   document.getElementById('theme').onclick = toggleTheme;
   document.getElementById('lock').onclick = () => {
     try { localStorage.removeItem(LS_KEY); } catch { /* ไม่เป็นไร */ }
@@ -539,21 +551,76 @@ function drawDaily() {
   svg.addEventListener('pointerleave', () => { tip.style.opacity = 0; });
 }
 
-/* ---------------- ปลดล็อก ---------------- */
+/* ---------------- โหลดข้อมูลใหม่ ---------------- */
 let ENVELOPE = null;
+let PASS = null;
+let lastFetch = 0;
+let refreshing = false;
 
-async function unlock(pass, remember) {
-  if (!ENVELOPE) {
-    const res = await fetch(DATA_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ (' + res.status + ')');
-    ENVELOPE = await res.json();
+/** ดึงไฟล์เข้ารหัสจากเซิร์ฟเวอร์แบบเลี่ยงแคชทุกชั้น */
+async function fetchEnvelope() {
+  const res = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ (' + res.status + ')');
+  lastFetch = Date.now();
+  return res.json();
+}
+
+function flash(msg, isError) {
+  let el = document.getElementById('flash');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'flash';
+    el.className = 'flash';
+    document.body.appendChild(el);
   }
+  el.textContent = msg;
+  el.classList.toggle('err', Boolean(isError));
+  el.classList.add('show');
+  clearTimeout(flash.t);
+  flash.t = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+async function refresh(quiet) {
+  if (refreshing || !PASS) return;
+  refreshing = true;
+  const btn = document.getElementById('refresh');
+  if (btn) { btn.textContent = '⋯'; btn.disabled = true; }
+  try {
+    const env = await fetchEnvelope();
+    const next = await decrypt(env, PASS);
+    const isNewer = !DATA || next.generatedAt !== DATA.generatedAt;
+    ENVELOPE = env;
+    DATA = next;
+    render(); // render สร้างปุ่มใหม่อยู่แล้ว ไม่ต้องคืนสถานะปุ่มเอง
+    // บอกตามจริง: ถ้าเครื่องที่บ้านยังไม่ได้ sync ใหม่ ก็ไม่มีอะไรใหม่ให้ดู
+    if (!quiet) flash(isNewer ? 'อัปเดตแล้ว' : 'ข้อมูลใหม่สุดแล้ว · รอ PC sync รอบถัดไป');
+  } catch (e) {
+    // ข้อมูลเดิมยังอยู่บนจอ ไม่ต้องล้างทิ้งเพราะโหลดรอบเดียวไม่ผ่าน
+    if (!quiet) flash(e.message || 'โหลดไม่สำเร็จ', true);
+    if (btn) { btn.textContent = '↻'; btn.disabled = false; }
+  } finally {
+    refreshing = false;
+  }
+}
+
+/* ---------------- ปลดล็อก ---------------- */
+async function unlock(pass, remember) {
+  if (!ENVELOPE) ENVELOPE = await fetchEnvelope();
   DATA = await decrypt(ENVELOPE, pass);
+  PASS = pass;
   if (remember) { try { localStorage.setItem(LS_KEY, pass); } catch { /* ไม่เป็นไร */ } }
   document.getElementById('gate').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   render();
-  setInterval(render, 60000); // นับถอยหลังเวลารีเซ็ตให้เดินต่อ
+
+  setInterval(render, 60000);          // ให้นับถอยหลังเวลารีเซ็ตเดินต่อ
+  setInterval(() => refresh(true), 300000); // ดึงข้อมูลใหม่เงียบ ๆ ทุก 5 นาที
+
+  // กลับมาที่แท็บ/ปลดล็อกมือถือ แล้วข้อมูลเก่ากว่า 1 นาที ให้ดึงใหม่ให้เลย
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - lastFetch > 60000) refresh(true);
+  });
+
   let t;
   addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawDaily, 150); });
 }
