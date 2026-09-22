@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Claude Usage</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --series-1: #2a78d6;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --shadow: 0 1px 2px rgba(11, 11, 11, 0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --series-1: #3987e5;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 56px; }
+
+  /* ---------- หน้าใส่รหัส ---------- */
+  #gate { min-height: 100svh; display: grid; place-items: center; padding: 24px 16px; }
+  #gate .box {
+    width: 100%; max-width: 360px; background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 14px; padding: 24px; box-shadow: var(--shadow);
+  }
+  #gate h1 { font-size: 19px; margin: 0 0 6px; }
+  #gate p { margin: 0 0 18px; color: var(--text-secondary); font-size: 13px; }
+  input[type="password"] {
+    width: 100%; padding: 11px 12px; font-size: 16px; font-family: inherit;
+    color: var(--text-primary); background: var(--plane);
+    border: 1px solid var(--axis); border-radius: 9px;
+  }
+  input[type="password"]:focus { outline: 2px solid var(--series-1); outline-offset: 1px; border-color: transparent; }
+  button {
+    font-family: inherit; font-size: 14px; color: var(--text-primary);
+    background: var(--surface-1); border: 1px solid var(--axis);
+    border-radius: 9px; padding: 8px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--series-1); }
+  button.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; width: 100%; padding: 11px; margin-top: 12px; }
+  button.primary:hover { filter: brightness(1.08); }
+  .err { color: var(--critical); font-size: 13px; margin-top: 10px; min-height: 18px; }
+  label.remember { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
+
+  /* ---------- หัวหน้า ---------- */
+  header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  header .who { flex: 1 1 200px; min-width: 0; }
+  header .who .label { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+  header .who .sub { font-size: 12px; color: var(--muted); }
+  header .tools { display: flex; gap: 8px; }
+  header .tools button { padding: 6px 10px; font-size: 13px; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow);
+  }
+  .card > h2 {
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
+    margin: 0 0 2px; letter-spacing: 0.01em;
+  }
+  .card > .hint { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
+
+  /* ---------- ตัวเลขนำ + meter ---------- */
+  .hero { font-size: 52px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; }
+  .hero .unit { font-size: 22px; font-weight: 500; color: var(--text-secondary); margin-left: 2px; }
+  .hero-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .hero-side { text-align: right; font-size: 13px; color: var(--text-secondary); }
+  .hero-side strong { display: block; font-size: 17px; color: var(--text-primary); font-weight: 600; }
+  .meter { height: 12px; border-radius: 6px; overflow: hidden; margin: 16px 0 10px;
+           background: color-mix(in srgb, var(--meter, var(--series-1)) 16%, var(--surface-1)); }
+  .meter > i { display: block; height: 100%; border-radius: 6px; background: var(--meter, var(--series-1)); transition: width .4s ease; }
+  .meter-foot { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .status-line { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-top: 12px; color: var(--text-secondary); }
+  .status-line .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--meter, var(--series-1)); }
+
+  /* ---------- stat tiles ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+  @media (min-width: 620px) { .tiles { grid-template-columns: repeat(4, 1fr); } }
+  /* min-width:0 จำเป็น ไม่งั้น grid item จะไม่ยอมหดต่ำกว่าความกว้างข้อความ แล้วล้นจอแคบ */
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); min-width: 0; }
+  .tile .k { font-size: 12px; color: var(--text-secondary); overflow-wrap: anywhere; }
+  .tile .v { font-size: 24px; font-weight: 600; margin-top: 3px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  .tile .d { font-size: 11px; color: var(--muted); margin-top: 1px; overflow-wrap: anywhere; }
+
+  /* ---------- กราฟแท่งแนวนอน ---------- */
+  .hbars { display: flex; flex-direction: column; gap: 12px; }
+  .hbar .top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 5px; }
+  .hbar .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .hbar .val { color: var(--text-secondary); font-variant-numeric: tabular-nums; flex: none; }
+  .hbar .track { height: 10px; background: var(--grid); border-radius: 5px; }
+  .hbar .fill { height: 100%; background: var(--series-1); border-radius: 0 5px 5px 0; min-width: 3px; }
+
+  /* ---------- SVG ---------- */
+  .chart-box { position: relative; }
+  svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+  svg text { fill: var(--muted); font-size: 11px; font-family: inherit; font-variant-numeric: tabular-nums; }
+  .tip {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity .12s;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 9px;
+    padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14);
+    white-space: nowrap; z-index: 5;
+  }
+  .tip .t { color: var(--muted); }
+  .tip .m { font-weight: 600; font-size: 14px; }
+
+  /* ---------- ตาราง ---------- */
+  .toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: right; padding: 7px 6px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+  th { color: var(--text-secondary); font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--critical); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--critical); }
+  .scroll { overflow-x: auto; }
+  .hidden { display: none !important; }
+  footer { font-size: 12px; color: var(--muted); margin-top: 22px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <form class="box" id="gate-form">
+    <h1>Claude Usage</h1>
+    <p>ข้อมูลในหน้านี้ถูกเข้ารหัสไว้ ใส่รหัสผ่านเพื่อดู</p>
+    <input type="password" id="pass" autocomplete="current-password" placeholder="รหัสผ่าน" required>
+    <label class="remember"><input type="checkbox" id="remember" checked> จำรหัสไว้ในเครื่องนี้</label>
+    <button class="primary" type="submit">เปิดดู</button>
+    <div class="err" id="gate-err"></div>
+  </form>
+</div>
+
+<div class="wrap hidden" id="app"></div>
+
+<script type="module">
+const DATA_URL = 'data.enc.json';
+const LS_KEY = 'cu.pass';
+const LS_THEME = 'cu.theme';
+
+/* ---------------- ธีม ---------------- */
+function readTheme() { try { return localStorage.getItem(LS_THEME); } catch { return null; } }
+const savedTheme = readTheme();
+if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+
+function toggleTheme() {
+  const isDark = getComputedStyle(document.documentElement).colorScheme.includes('dark');
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem(LS_THEME, next); } catch { /* โหมดส่วนตัวเขียนไม่ได้ ไม่เป็นไร */ }
+  render();
+}
+
+/* ---------------- ถอดรหัส ---------------- */
+async function decrypt(env, passphrase) {
+  const enc = new TextEncoder();
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const base = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: b64(env.salt), iterations: env.kdf.iterations, hash: env.kdf.hash },
+    base, { name: 'AES-GCM', length: 256 }, false, ['decrypt'],
+  );
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(env.iv) }, key, b64(env.ct));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+/* ---------------- ตัวช่วยจัดรูปแบบ ---------------- */
+const money = (n) => '$' + (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2));
+const compact = (n) => {
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'K';
+  return String(Math.round(n));
+};
+const pad = (n) => String(n).padStart(2, '0');
+function clock(ms, tz) {
+  return new Date(ms).toLocaleTimeString('th-TH', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function dateShort(iso, tz) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('th-TH', { timeZone: 'UTC', day: 'numeric', month: 'short' });
+}
+function since(iso) {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'เมื่อครู่';
+  if (mins < 60) return mins + ' นาทีที่แล้ว';
+  const h = Math.floor(mins / 60);
+  if (h < 24) return h + ' ชม.ที่แล้ว';
+  return Math.floor(h / 24) + ' วันที่แล้ว';
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------------- สถานะ ---------------- */
+let DATA = null;
+let showTable = false;
+
+/* ---------------- กราฟแท่งแนวตั้ง 30 วัน (SVG) ---------------- */
+function columnChart(days, width) {
+  const H = 210, padL = 42, padR = 8, padT = 12, padB = 26;
+  const W = Math.max(300, width);
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const max = Math.max(...days.map((d) => d.cost), 0.01);
+
+  // ปัดแกน y ขึ้นเป็นเลขกลม ๆ
+  const pow = Math.pow(10, Math.floor(Math.log10(max)));
+  const top = Math.ceil(max / pow * 2) / 2 * pow;
+  const ticks = [0, top / 2, top];
+
+  const band = plotW / days.length;
+  const barW = Math.min(24, Math.max(3, band - 2)); // เว้นช่องว่างผิวพื้น 2px ระหว่างแท่ง
+  const r = Math.min(4, barW / 2);
+  const y = (v) => padT + plotH - (v / top) * plotH;
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ค่าใช้จ่ายเทียบเท่า API รายวัน 30 วันล่าสุด">`;
+  for (const t of ticks) {
+    s += `<line x1="${padL}" y1="${y(t).toFixed(1)}" x2="${W - padR}" y2="${y(t).toFixed(1)}"
+           stroke="${t === 0 ? 'var(--axis)' : 'var(--grid)'}" stroke-width="1"/>`;
+    s += `<text x="${padL - 7}" y="${(y(t) + 3.5).toFixed(1)}" text-anchor="end">${money(t)}</text>`;
+  }
+  days.forEach((d, i) => {
+    const cx = padL + band * i + band / 2;
+    if (d.cost > 0) {
+      const h = Math.max(r, (d.cost / top) * plotH);
+      const y0 = padT + plotH - h;
+      const x = cx - barW / 2;
+      // ปลายบนโค้ง 4px ฐานตัดตรง
+      s += `<path d="M${x} ${padT + plotH} L${x} ${y0 + r} Q${x} ${y0} ${x + r} ${y0}
+             L${x + barW - r} ${y0} Q${x + barW} ${y0} ${x + barW} ${y0 + r}
+             L${x + barW} ${padT + plotH} Z" fill="var(--series-1)"/>`;
+    }
+    if (i % 5 === 0 || i === days.length - 1) {
+      s += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle">${dateShort(d.date)}</text>`;
+    }
+    // พื้นที่รับ hover กว้างเต็มช่อง ไม่ใช่แค่ตัวแท่ง
+    s += `<rect class="hit" data-i="${i}" x="${(padL + band * i).toFixed(2)}" y="${padT}"
+           width="${band.toFixed(2)}" height="${plotH}" fill="transparent"/>`;
+  });
+  s += '</svg>';
+  return s;
+}
+
+/* ---------------- แท่งแนวนอน (HTML) ---------------- */
+function hbars(rows, keyName) {
+  const max = Math.max(...rows.map((r) => r.cost), 0.0001);
+  return '<div class="hbars">' + rows.map((r) => `
+    <div class="hbar">
+      <div class="top">
+        <span class="name">${esc(r[keyName])}</span>
+        <span class="val">${money(r.cost)} · ${compact(r.events)} ข้อความ</span>
+      </div>
+      <div class="track"><div class="fill" style="width:${Math.max(1.5, (r.cost / max) * 100).toFixed(1)}%"></div></div>
+    </div>`).join('') + '</div>';
+}
+
+/* ---------------- วาดทั้งหน้า ---------------- */
+function render() {
+  const d = DATA;
+  const app = document.getElementById('app');
+  const tz = d.tz || 'Asia/Bangkok';
+
+  // --- หน้าต่าง 5 ชั่วโมง ---
+  const cur = d.current;
+  const pct = cur ? Math.round(cur.pct * 100) : 0;
+  const meter = pct >= 85 ? 'var(--critical)' : pct >= 60 ? 'var(--warning)' : 'var(--series-1)';
+  let left = '';
+  if (cur) {
+    const ms = Math.max(0, cur.reset - Date.now());
+    left = `${Math.floor(ms / 3600000)}:${pad(Math.floor(ms / 60000) % 60)}`;
+  }
+  const capNote = d.cap.confident
+    ? `เพดานประมาณจากหน้าต่างที่เคยชนลิมิตจริง (${d.cap.samples} ครั้ง)`
+    : 'ยังไม่เคยชนลิมิต — เพดานนี้เป็นเพียงขอบล่างจากค่าสูงสุดที่เคยใช้';
+
+  const hitCount = d.windows.filter((w) => w.hitLimit).length;
+  const totalTokens = d.totals.input + d.totals.output + d.totals.cacheWrite + d.totals.cacheRead;
+
+  const heroCard = cur ? `
+    <div class="card" style="--meter:${meter}">
+      <h2>หน้าต่าง 5 ชั่วโมงปัจจุบัน</h2>
+      <p class="hint">เริ่ม ${clock(cur.start, tz)} น. · รีเซ็ต ${clock(cur.reset, tz)} น.</p>
+      <div class="hero-row">
+        <div class="hero">${pct}<span class="unit">%</span></div>
+        <div class="hero-side">
+          เหลือเวลา<strong>${left} ชม.</strong>
+        </div>
+      </div>
+      <div class="meter"><i style="width:${Math.min(100, pct)}%"></i></div>
+      <div class="meter-foot">
+        <span>ใช้ไป ${money(cur.cost)} · ${cur.events} ข้อความ</span>
+        <span>เพดาน ~${money(d.cap.cost)}</span>
+      </div>
+      <div class="status-line"><span class="dot"></span>${capNote}</div>
+    </div>` : `
+    <div class="card">
+      <h2>หน้าต่าง 5 ชั่วโมงปัจจุบัน</h2>
+      <p class="hint">ไม่มีหน้าต่างที่ยังไม่หมดอายุ</p>
+      <div class="hero">ว่าง</div>
+      <div class="status-line"><span class="dot" style="background:var(--good)"></span>โควต้ารอบนี้ยังไม่ถูกใช้เลย</div>
+    </div>`;
+
+  app.innerHTML = `
+    <header>
+      <div class="who">
+        <div class="label">${esc(d.label || 'Claude usage')}</div>
+        <div class="sub">อัปเดต ${since(d.generatedAt)} · ${d.plan ? d.plan.toUpperCase() : ''}</div>
+      </div>
+      <div class="tools">
+        <button id="theme" title="สลับธีม">◐</button>
+        <button id="lock" title="ล็อกและลืมรหัส">ล็อก</button>
+      </div>
+    </header>
+
+    ${heroCard}
+
+    <div class="tiles">
+      <div class="tile"><div class="k">7 วันล่าสุด</div><div class="v">${money(d.last7.cost)}</div><div class="d">${compact(d.last7.events)} ข้อความ</div></div>
+      <div class="tile"><div class="k">รวมทั้งหมด</div><div class="v">${money(d.totals.cost)}</div><div class="d">${compact(d.totals.events)} ข้อความ</div></div>
+      <div class="tile"><div class="k">token ทั้งหมด</div><div class="v">${compact(totalTokens)}</div><div class="d">อ่าน cache ${compact(d.totals.cacheRead)}</div></div>
+      <div class="tile"><div class="k">ชนลิมิต</div><div class="v">${hitCount}</div><div class="d">ใน ${d.windows.length} หน้าต่างล่าสุด</div></div>
+    </div>
+
+    <div class="card">
+      <h2>ค่าใช้จ่ายเทียบเท่า API รายวัน</h2>
+      <p class="hint">30 วันล่าสุด ตามเวลา ${esc(tz)}</p>
+      <div class="toolbar"><button id="tbl">${showTable ? 'ดูกราฟ' : 'ดูเป็นตาราง'}</button></div>
+      <div id="daily"></div>
+    </div>
+
+    <div class="card">
+      <h2>แยกตามโมเดล</h2>
+      <p class="hint">ตลอดช่วงที่มี log</p>
+      ${hbars(d.byModel, 'model')}
+    </div>
+
+    <div class="card">
+      <h2>แยกตามโปรเจกต์</h2>
+      <p class="hint">ตลอดช่วงที่มี log</p>
+      ${hbars(d.byProject.slice(0, 8), 'project')}
+    </div>
+
+    <div class="card">
+      <h2>ประวัติหน้าต่าง 5 ชั่วโมง</h2>
+      <p class="hint">เรียงจากใหม่ไปเก่า</p>
+      <div class="scroll"><table>
+        <thead><tr><th>เริ่ม</th><th>ใช้ไป</th><th>ข้อความ</th><th>สถานะ</th></tr></thead>
+        <tbody>${[...d.windows].reverse().slice(0, 12).map((w) => `
+          <tr>
+            <td>${new Date(w.start).toLocaleString('th-TH', { timeZone: tz, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</td>
+            <td>${money(w.cost)}</td>
+            <td>${w.events}</td>
+            <td style="text-align:right">${w.hitLimit ? '<span class="pill"><span class="dot"></span>ชนลิมิต</span>' : '<span style="color:var(--muted)">ปกติ</span>'}</td>
+          </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+
+    <footer>
+      ${esc(d.source.note)}<br>
+      ตัวเลขค่าใช้จ่ายคือมูลค่าเทียบเท่าอัตรา API ไม่ใช่ยอดเรียกเก็บจริงของแพ็กเกจรายเดือน<br>
+      ข้อมูลตั้งแต่ ${d.source.firstTs ? new Date(d.source.firstTs).toLocaleDateString('th-TH', { timeZone: tz }) : '—'}
+    </footer>`;
+
+  document.getElementById('theme').onclick = toggleTheme;
+  document.getElementById('lock').onclick = () => {
+    try { localStorage.removeItem(LS_KEY); } catch { /* ไม่เป็นไร */ }
+    location.reload();
+  };
+  document.getElementById('tbl').onclick = () => { showTable = !showTable; render(); };
+  drawDaily();
+}
+
+function drawDaily() {
+  const host = document.getElementById('daily');
+  if (!host) return;
+  const days = DATA.daily;
+
+  if (showTable) {
+    const rows = days.filter((d) => d.events > 0).reverse();
+    host.innerHTML = `<div class="scroll"><table>
+      <thead><tr><th>วันที่</th><th>ค่าใช้จ่าย</th><th>ข้อความ</th><th>output</th><th>อ่าน cache</th></tr></thead>
+      <tbody>${rows.map((d) => `<tr><td>${d.date}</td><td>${money(d.cost)}</td><td>${d.events}</td>
+        <td>${compact(d.output)}</td><td>${compact(d.cacheRead)}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+    return;
+  }
+
+  host.innerHTML = `<div class="chart-box">${columnChart(days, host.clientWidth)}<div class="tip" id="tip"></div></div>`;
+
+  const box = host.querySelector('.chart-box');
+  const svg = host.querySelector('svg');
+  const tip = host.querySelector('#tip');
+  const vb = svg.viewBox.baseVal;
+
+  const show = (ev) => {
+    const hit = ev.target.closest('.hit');
+    if (!hit) { tip.style.opacity = 0; return; }
+    const d = days[+hit.dataset.i];
+    tip.innerHTML = `<div class="t">${dateShort(d.date)}</div><div class="m">${money(d.cost)}</div>
+                     <div class="t">${d.events} ข้อความ · output ${compact(d.output)}</div>`;
+    tip.style.opacity = 1;
+    // แปลงพิกัดจาก viewBox เป็นพิกัดจริงของกล่อง
+    const scale = box.clientWidth / vb.width;
+    const cx = (+hit.getAttribute('x') + +hit.getAttribute('width') / 2) * scale;
+    const w = tip.offsetWidth;
+    tip.style.left = Math.max(0, Math.min(box.clientWidth - w, cx - w / 2)) + 'px';
+    tip.style.top = '0px';
+  };
+  svg.addEventListener('pointermove', show);
+  svg.addEventListener('pointerdown', show);
+  svg.addEventListener('pointerleave', () => { tip.style.opacity = 0; });
+}
+
+/* ---------------- ปลดล็อก ---------------- */
+let ENVELOPE = null;
+
+async function unlock(pass, remember) {
+  if (!ENVELOPE) {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ (' + res.status + ')');
+    ENVELOPE = await res.json();
+  }
+  DATA = await decrypt(ENVELOPE, pass);
+  if (remember) { try { localStorage.setItem(LS_KEY, pass); } catch { /* ไม่เป็นไร */ } }
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  render();
+  setInterval(render, 60000); // นับถอยหลังเวลารีเซ็ตให้เดินต่อ
+  let t;
+  addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawDaily, 150); });
+}
+
+document.getElementById('gate-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = document.getElementById('gate-err');
+  err.textContent = '';
+  try {
+    await unlock(document.getElementById('pass').value, document.getElementById('remember').checked);
+  } catch (ex) {
+    err.textContent = ex instanceof Error && ex.message.startsWith('โหลด') ? ex.message : 'รหัสผ่านไม่ถูกต้อง';
+  }
+});
+
+// ถ้าเคยจำรหัสไว้ ให้เปิดเข้าไปเลย
+(async () => {
+  let saved = null;
+  try { saved = localStorage.getItem(LS_KEY); } catch { /* ไม่เป็นไร */ }
+  if (!saved) return;
+  try { await unlock(saved, false); }
+  catch { try { localStorage.removeItem(LS_KEY); } catch { /* ไม่เป็นไร */ } }
+})();
+</script>
+</body>
+</html>

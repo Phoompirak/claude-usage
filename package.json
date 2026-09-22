@@ -1,0 +1,15 @@
+{
+  "name": "claude-usage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Personal Claude Code usage dashboard — scans local session logs, publishes an encrypted snapshot to GitHub Pages.",
+  "scripts": {
+    "sync": "node src/sync.js",
+    "sync:nopush": "node src/sync.js --no-push",
+    "preview": "node .cache/mkpreview.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

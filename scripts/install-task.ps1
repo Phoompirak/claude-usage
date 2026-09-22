@@ -1,0 +1,77 @@
+# ติดตั้ง Windows Scheduled Task ให้ sync usage ทุก 10 นาที
+#
+#   ติดตั้ง :  powershell -ExecutionPolicy Bypass -File scripts\install-task.ps1
+#   ถอนออก :  powershell -ExecutionPolicy Bypass -File scripts\install-task.ps1 -Uninstall
+#
+# งานนี้รันในสิทธิ์ผู้ใช้ปัจจุบัน ไม่ต้องใช้ Administrator
+# และตั้งให้รันแบบซ่อนหน้าต่าง จะไม่มีหน้าต่างดำเด้งขึ้นมากวนทุก 10 นาที
+
+[CmdletBinding()]
+param(
+    [switch]$Uninstall,
+    [int]$IntervalMinutes = 10,
+    [string]$TaskName = 'ClaudeUsageSync'
+)
+
+$ErrorActionPreference = 'Stop'
+
+$root = Split-Path -Parent $PSScriptRoot
+$syncScript = Join-Path $root 'src\sync.js'
+
+if ($Uninstall) {
+    if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+        Write-Host "ถอนงาน '$TaskName' เรียบร้อย" -ForegroundColor Green
+    } else {
+        Write-Host "ไม่พบงานชื่อ '$TaskName' อยู่แล้ว" -ForegroundColor Yellow
+    }
+    return
+}
+
+# --- ตรวจของที่ต้องมีก่อน ---
+$node = (Get-Command node -ErrorAction SilentlyContinue).Source
+if (-not $node) { throw "หา node.exe ไม่เจอใน PATH — ติดตั้ง Node.js ก่อน" }
+if (-not (Test-Path $syncScript)) { throw "ไม่พบ $syncScript" }
+if (-not (Test-Path (Join-Path $root '.env.local'))) {
+    throw "ยังไม่มี .env.local — คัดลอกจาก .env.local.example แล้วตั้ง CU_PASSPHRASE ก่อน"
+}
+
+# เรียกผ่าน wscript + vbs เพื่อให้รันแบบไม่มีหน้าต่างจริง ๆ
+# (ScheduledTask แบบ Hidden ยังแวบหน้าต่าง console ขึ้นมาสั้น ๆ)
+$vbs = Join-Path $root '.cache\run-hidden.vbs'
+New-Item -ItemType Directory -Force -Path (Split-Path $vbs) | Out-Null
+@"
+' ตัวช่วยรัน sync แบบไม่แสดงหน้าต่าง — ไฟล์นี้ถูกสร้างโดย install-task.ps1
+Set sh = CreateObject("WScript.Shell")
+sh.CurrentDirectory = "$root"
+sh.Run """$node"" ""$syncScript""", 0, False
+"@ | Set-Content -Path $vbs -Encoding ASCII
+
+$action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "//nologo `"$vbs`"" -WorkingDirectory $root
+
+# ทริกเกอร์: เริ่มตอนล็อกอิน แล้ววนซ้ำทุก N นาทีไปเรื่อย ๆ
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+$trigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) `
+    -RepetitionDuration ([TimeSpan]::MaxValue)).Repetition
+
+$settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+    -StartWhenAvailable `
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 10) `
+    -MultipleInstances IgnoreNew
+
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+
+if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+}
+
+Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+    -Settings $settings -Principal $principal `
+    -Description "sync Claude Code usage ขึ้น GitHub Pages ทุก $IntervalMinutes นาที" | Out-Null
+
+Write-Host "ตั้งงาน '$TaskName' ให้รันทุก $IntervalMinutes นาทีแล้ว" -ForegroundColor Green
+Write-Host "ทดสอบเดี๋ยวนี้:  Start-ScheduledTask -TaskName $TaskName"
+Write-Host "ดูสถานะ     :  Get-ScheduledTaskInfo -TaskName $TaskName"
+Write-Host "ถอนออก      :  powershell -File scripts\install-task.ps1 -Uninstall"
