@@ -49,11 +49,12 @@ sh.Run """$node"" ""$syncScript""", 0, False
 
 $action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "//nologo `"$vbs`"" -WorkingDirectory $root
 
-# ทริกเกอร์: เริ่มตอนล็อกอิน แล้ววนซ้ำทุก N นาทีไปเรื่อย ๆ
-$trigger = New-ScheduledTaskTrigger -AtLogOn
+# ทริกเกอร์: เริ่มใหม่ทุกเที่ยงคืน แล้ววนซ้ำทุก N นาทีตลอด 24 ชั่วโมง
+# (ไม่ใช้ RepetitionDuration = TimeSpan::MaxValue เพราะ Windows ปฏิเสธ XML ที่ได้)
+$trigger = New-ScheduledTaskTrigger -Daily -At '00:00'
 $trigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) `
     -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) `
-    -RepetitionDuration ([TimeSpan]::MaxValue)).Repetition
+    -RepetitionDuration (New-TimeSpan -Hours 24)).Repetition
 
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
