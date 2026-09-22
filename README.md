@@ -69,15 +69,15 @@ npm run sync:nopush
 gh auth login                                  # ถ้ายังไม่เคยล็อกอิน
 gh repo create claude-usage --public --source=. --remote=origin
 git add -A && git commit -m "init"
-git push -u origin main
+git push -u origin master
 gh api -X POST repos/:owner/claude-usage/pages -f build_type=legacy \
-  -f 'source[branch]=main' -f 'source[path]=/docs'
+  -f 'source[branch]=master' -f 'source[path]=/docs'
 ```
 
 > repo ต้องเป็น **public** ถ้าบัญชีไม่ใช่ GitHub Pro (Pages จาก private repo เป็นฟีเจอร์เสียเงิน)
 > ข้อมูลที่ push ขึ้นไปเป็น ciphertext ล้วน — ตัวเลข ชื่อโปรเจกต์ และอีเมล อ่านไม่ได้ถ้าไม่มีรหัส
 
-URL ที่ได้: `https://<username>.github.io/claude-usage/`
+URL จริงของโปรเจกต์นี้: https://phoompirak.github.io/claude-usage/
 
 ### 4. ตั้งให้อัปเดตเอง
 
