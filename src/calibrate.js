@@ -159,6 +159,36 @@ async function main() {
   }
 
   const prev = loadCalibration(ROOT);
+
+  // กันเคสป้อนเลขเก่า — อันตรายกว่าไม่ปรับเทียบเลย เพราะทำให้เพดานเฟ้อเงียบ ๆ
+  //
+  // ถ้ายังอยู่หน้าต่างเดิมกับครั้งก่อน เพดานที่ถอดได้ต้องออกมาใกล้เคียงของเดิม
+  // ถ้าต่างกันมาก แปลว่ายอดที่ใช้โตขึ้นแต่ % ที่ป้อนไม่โตตาม = หยิบเลขเก่ามาใช้ซ้ำ
+  const SAME_WINDOW_MS = 30 * 60_000;
+  const DRIFT_LIMIT = 0.08;
+  let staleWarning = null;
+  if (prev?.session && Math.abs(prev.session.reset - sessionReset) < SAME_WINDOW_MS) {
+    const drift = cal.session.capCost / prev.session.capCost - 1;
+    if (Math.abs(drift) > DRIFT_LIMIT) {
+      const implied = (localCost / prev.session.capCost) * 100;
+      const pctLine = prev.session.pct === sessionPct
+        ? `แต่ % ที่ป้อนยังเป็น ${sessionPct}% เท่าเดิม`
+        : `ส่วน % ที่ป้อนกลับลดจาก ${prev.session.pct}% เป็น ${sessionPct}%`;
+      staleWarning = `⚠  ตัวเลขที่ป้อนน่าจะไม่ใช่ค่าสด
+
+   ครั้งก่อนปรับเทียบในหน้าต่างเดียวกันนี้ ได้เพดาน $${prev.session.capCost.toFixed(2)}
+   คราวนี้ได้ $${cal.session.capCost.toFixed(2)} (${drift > 0 ? '+' : ''}${(drift * 100).toFixed(0)}%)
+
+   ยอดที่ใช้โตจาก $${prev.session.localCost.toFixed(2)} เป็น $${localCost.toFixed(2)}
+   ${pctLine} ซึ่งขัดกันเองถ้าอ่านสดจริง
+
+   ถ้าเพดานเดิมถูก ตอนนี้ /usage ควรแสดงราว ${implied.toFixed(0)}%
+
+   บันทึกค่าใหม่ไปแล้ว แต่แนะนำให้เปิด /usage อ่านเลขสด แล้วรันซ้ำอีกครั้ง
+   การปรับเทียบด้วยเลขเก่าทำให้เพดานเฟ้อ = แสดง % ต่ำกว่าความจริง`;
+    }
+  }
+
   fs.writeFileSync(path.join(ROOT, CALIBRATION_FILE), JSON.stringify(cal, null, 2));
 
   const fmt = (n) => '$' + n.toFixed(2);
@@ -177,6 +207,7 @@ async function main() {
       + ` -> เพดาน ${fmt(cal.weekly.capCost)}`);
   }
   console.log(`\nบันทึกลง ${CALIBRATION_FILE} แล้ว — รัน "node src/sync.js --force" เพื่อให้เว็บใช้ค่าใหม่`);
+  if (staleWarning) console.warn('\n' + staleWarning + '\n');
 }
 
 // ไฟล์นี้ถูก import โดย sync.js เพื่อใช้ loadCalibration ด้วย
